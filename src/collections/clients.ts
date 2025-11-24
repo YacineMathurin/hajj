@@ -1,15 +1,14 @@
 import { CollectionConfig } from 'payload'
 import { jsPDF } from 'jspdf'
-import XLSX from 'xlsx'
 
 interface ClientDoc {
   id: string
   nom: string
   prenom: string
-  dateNaissance?: string
+  dateNaissance?: Date
   lieuNaissance?: string
   numeroPasseport: string
-  expiration: string
+  expiration: Date
   paid: number
   leftToPay: number
   expirationStatus: 'OK' | 'KO'
@@ -31,6 +30,11 @@ export const clients: CollectionConfig = {
       'leftToPay',
     ],
     group: 'Management',
+    components: {
+      edit: {
+        SaveButton: '@/components/editActions',
+      },
+    },
   },
   fields: [
     {
@@ -110,7 +114,6 @@ export const clients: CollectionConfig = {
       ({ data }) => {
         if (data?.expiration) {
           const expDate = new Date(data.expiration)
-          const today = new Date()
           const sixMonthsLater = new Date()
           sixMonthsLater.setMonth(sixMonthsLater.getMonth() + 6)
 
@@ -122,140 +125,246 @@ export const clients: CollectionConfig = {
   },
   endpoints: [
     {
-      path: '/export',
+      path: '/generate-pdf/:id',
       method: 'get',
-      handler: async (req, res) => {
+      handler: async (req: { payload: any; routeParams?: { id?: string } }) => {
         try {
           const payload = req.payload
-          const clientsResult = await payload.find({
-            collection: 'clients',
-            limit: 9999,
-          })
+          const clientId = req.routeParams?.id
+          const FONT = 'Helvetica' // Clean modern font
+          const HEADER_COLOR = [30, 78, 93] // Deep Teal/Blue
+          const LIGHT_GRAY = [220, 220, 220]
 
-          const data = clientsResult.docs.map((c: any) => ({
-            nom: c.nom,
-            prenom: c.prenom,
-            'date de naissance': c.dateNaissance || '',
-            'lieu de naissance': c.lieuNaissance || '',
-            'numero passeport': c.numeroPasseport,
-            expiration: c.expiration,
-            paid: c.paid,
-            'left to pay': c.leftToPay,
-          }))
-
-          const worksheet = XLSX.utils.json_to_sheet(data)
-          const workbook = XLSX.utils.book_new()
-          XLSX.utils.book_append_sheet(workbook, worksheet, 'Clients')
-
-          res.setHeader('Content-Disposition', 'attachment; filename="clients_hajj.xlsx"')
-          res.setHeader(
-            'Content-Type',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-          )
-
-          const buffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' })
-          return res.send(buffer)
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Export failed'
-          return res.status(500).json({ error: message })
-        }
-      },
-    },
-    {
-      path: '/:id/pdf',
-      method: 'get',
-      handler: async (req, res) => {
-        try {
-          const payload = req.payload
-          const clientId = req.params.id as string
+          if (!clientId) {
+            return new Response(JSON.stringify({ error: 'Client ID missing' }), {
+              status: 400,
+              headers: { 'Content-Type': 'application/json' },
+            })
+          }
 
           const client = (await payload.findByID({
             collection: 'clients',
             id: clientId,
+            req: req,
           })) as ClientDoc
 
           if (!client) {
-            return res.status(404).json({ error: 'Client not found' })
+            return new Response(JSON.stringify({ error: 'Client not found' }), {
+              status: 404,
+              headers: { 'Content-Type': 'application/json' },
+            })
           }
 
           const doc = new jsPDF()
-          let yPosition = 20
+          let yPosition = 15
+          const margin = 20
+          const pageWidth = doc.internal.pageSize.getWidth()
+          const currencySymbol = 'FCFA' // Fixed positions for two-column alignment
+          const labelX1 = margin
+          const valueX1 = labelX1 + 45
+          const labelX2 = pageWidth / 2 + 5
+          const valueX2 = labelX2 + 35
+          const amountX = pageWidth - margin // Right alignment for amounts
+          const headerHeight = 8 // Height of the colored section header bar
+          // ----------------------------------------------------
+          // 1. DOCUMENT HEADER
+          // ----------------------------------------------------
 
-          // Title
-          doc.setFontSize(16)
-          doc.setFont(undefined, 'bold')
-          doc.text('HAJJ CLIENT PROFILE', 20, yPosition)
-          yPosition += 20
-
-          // Agent Info
           doc.setFontSize(10)
-          doc.setFont(undefined, 'normal')
-          doc.text(`Agent: ${client.agentName}`, 20, yPosition)
-          yPosition += 15
+          doc.setFont(FONT, 'normal')
+          doc.setTextColor(0, 0, 0) // Left Aligned Header
+          doc.text('RÉPUBLIQUE DU NIGER', margin, yPosition, { align: 'left' })
+          yPosition += 5
+          doc.text('Fraternité - Travail - Progrès', margin, yPosition, { align: 'left' }) // Right Aligned Organization Info
+          doc.text('Organisateur de Pèlerinage', amountX, yPosition, { align: 'right' })
+          yPosition += 10 // Main Title (Centered)
 
-          // Personal Information Section
+          doc.setFontSize(22)
+          doc.setFont(FONT, 'bold')
+          doc.text('PROFIL CLIENT HAJJ', pageWidth / 2, yPosition, { align: 'center' })
+          yPosition += 8 // Subtitle and Separator
+          doc.setFontSize(10)
+          doc.setFont(FONT, 'normal')
+          doc.setDrawColor(HEADER_COLOR[0], HEADER_COLOR[1], HEADER_COLOR[2])
+          doc.line(margin, yPosition, pageWidth - margin, yPosition)
+          doc.text(
+            `Fiche Générée le: ${new Date().toLocaleDateString('fr-FR')}`,
+            pageWidth / 2,
+            yPosition + 4,
+            { align: 'center' },
+          )
+          yPosition += 10 // Agent Info Block
+
+          doc.setFontSize(11)
+          doc.setFont(FONT, 'bold')
+          doc.text(`Agent Responsable:`, margin, yPosition)
+          doc.setFont(FONT, 'normal')
+          doc.text(`${client.agentName}`, margin + 40, yPosition)
+          yPosition += 10 // ----------------------------------------------------
+          // 2. Personal Information Section
+          // ----------------------------------------------------
+          // Draw colored background for the section header
+
+          doc.setFillColor(HEADER_COLOR[0], HEADER_COLOR[1], HEADER_COLOR[2])
+          doc.rect(margin, yPosition, pageWidth - 2 * margin, headerHeight, 'F')
           doc.setFontSize(12)
-          doc.setFont(undefined, 'bold')
-          doc.text('Personal Information', 20, yPosition)
-          yPosition += 10
+          doc.setFont(FONT, 'bold')
+          doc.setTextColor(255, 255, 255) // White text for contrast
+          doc.text('1. INFORMATIONS PERSONNELLES', margin + 2, yPosition + 5)
+          doc.setTextColor(0, 0, 0) // Reset text color
+          yPosition += headerHeight + 5
 
-          doc.setFontSize(10)
-          doc.setFont(undefined, 'normal')
-          doc.text(`Name: ${client.prenom} ${client.nom}`, 20, yPosition)
-          yPosition += 7
-          doc.text(`Date of Birth: ${client.dateNaissance || 'N/A'}`, 20, yPosition)
-          yPosition += 7
-          doc.text(`Place of Birth: ${client.lieuNaissance || 'N/A'}`, 20, yPosition)
-          yPosition += 7
-          doc.text(`Passport Number: ${client.numeroPasseport}`, 20, yPosition)
-          yPosition += 7
-          doc.text(`Expiration Date: ${client.expiration}`, 20, yPosition)
-          yPosition += 15
+          doc.setFontSize(10) // Row 1: Nom / Prénom
 
-          // Passport Status Section
+          doc.setFont(FONT, 'bold')
+          doc.text(`Nom:`, labelX1, yPosition)
+          doc.text(`Prénom:`, labelX2, yPosition)
+          doc.setFont(FONT, 'normal')
+          doc.text(`${client.nom.toUpperCase()}`, valueX1, yPosition)
+          doc.text(`${client.prenom}`, valueX2, yPosition)
+          yPosition += 7 // Row 2: Date de Naissance / Lieu de Naissance
+
+          doc.setFont(FONT, 'bold')
+          doc.text(`Date de Naissance:`, labelX1, yPosition)
+          doc.text(`Lieu de Naissance:`, labelX2, yPosition)
+          doc.setFont(FONT, 'normal')
+          doc.text(
+            `${new Date(client?.dateNaissance || '')?.toLocaleDateString('fr-FR') || 'N/A'}`,
+            valueX1,
+            yPosition,
+          )
+          doc.text(`${client.lieuNaissance || 'N/A'}`, valueX2, yPosition)
+          yPosition += 10 // ----------------------------------------------------
+          // 3. Passport Information Section
+          // ----------------------------------------------------
+          // Draw colored background for the section header
+
+          doc.setFillColor(HEADER_COLOR[0], HEADER_COLOR[1], HEADER_COLOR[2])
+          doc.rect(margin, yPosition, pageWidth - 2 * margin, headerHeight, 'F')
+
           doc.setFontSize(12)
-          doc.setFont(undefined, 'bold')
-          doc.text('Passport Status', 20, yPosition)
-          yPosition += 10
+          doc.setFont(FONT, 'bold')
+          doc.setTextColor(255, 255, 255) // White text for contrast
+          doc.text('2. STATUT DU PASSEPORT', margin + 2, yPosition + 5)
+          doc.setTextColor(0, 0, 0) // Reset text color
+          yPosition += headerHeight + 5 // Row 1: Numéro de Passeport / Date d'Expiration
 
           doc.setFontSize(10)
-          doc.setFont(undefined, 'normal')
+          doc.setFont(FONT, 'bold')
+          doc.text(`Numéro de Passeport:`, labelX1, yPosition)
+          doc.text(`Date d'Expiration:`, labelX2, yPosition)
+          doc.setFont(FONT, 'normal')
+          doc.text(`${client.numeroPasseport}`, valueX1, yPosition)
+          doc.text(`${new Date(client.expiration).toLocaleDateString('fr-FR')}`, valueX2, yPosition)
+          yPosition += 10 // Passport Status Result
+
+          doc.setFont(FONT, 'bold')
+          doc.text('Validité (Minimum 6 mois):', margin, yPosition)
+          doc.setFont(FONT, 'normal')
+
+          const statusTextX = margin + 50
+
           if (client.expirationStatus === 'OK') {
             doc.setTextColor(0, 128, 0)
-            doc.text('✓ OK - Passport is valid for more than 6 months', 20, yPosition)
+            doc.text('OK - Valide pour le Pèlerinage.', statusTextX, yPosition)
           } else {
             doc.setTextColor(255, 0, 0)
-            doc.text('✗ KO - Passport expires within 6 months', 20, yPosition)
+            doc.text('✗ KO - Expiration imminente. Renouvellement requis.', statusTextX, yPosition)
           }
-          doc.setTextColor(0, 0, 0)
-          yPosition += 15
+          doc.setTextColor(0, 0, 0) // Reset color
+          yPosition += 15 // ----------------------------------------------------
+          // 4. Payment Information Section (Right-Aligned Receipt Style)
+          // ----------------------------------------------------
+          // Draw colored background for the section header
 
-          // Payment Information Section
+          doc.setFillColor(HEADER_COLOR[0], HEADER_COLOR[1], HEADER_COLOR[2])
+          doc.rect(margin, yPosition, pageWidth - 2 * margin, headerHeight, 'F')
+
           doc.setFontSize(12)
-          doc.setFont(undefined, 'bold')
-          doc.text('Payment Information', 20, yPosition)
-          yPosition += 10
-
+          doc.setFont(FONT, 'bold')
+          doc.setTextColor(255, 255, 255) // White text for contrast
+          doc.text('3. RENSEIGNEMENTS FINANCIERS', margin + 2, yPosition + 5)
+          doc.setTextColor(0, 0, 0) // Reset text color
+          yPosition += headerHeight + 7
+          const total = client.paid + client.leftToPay // Total
           doc.setFontSize(10)
-          doc.setFont(undefined, 'normal')
-          doc.text(`Amount Paid: $${client.paid.toFixed(2)}`, 20, yPosition)
-          yPosition += 7
-          doc.text(`Amount Left to Pay: $${client.leftToPay.toFixed(2)}`, 20, yPosition)
-          yPosition += 7
-          const total = client.paid + client.leftToPay
-          doc.setFont(undefined, 'bold')
-          doc.text(`Total Amount: $${total.toFixed(2)}`, 20, yPosition)
-
-          res.setHeader(
-            'Content-Disposition',
-            `attachment; filename="${client.prenom}_${client.nom}_profile.pdf"`,
+          doc.setFont(FONT, 'bold')
+          doc.text('Montant Total du Pèlerinage:', margin, yPosition)
+          doc.text(
+            `${currencySymbol} ${total.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}`,
+            amountX,
+            yPosition,
+            {
+              align: 'right',
+            },
           )
-          res.setHeader('Content-Type', 'application/pdf')
+          yPosition += 7 // Paid
 
-          return res.send(Buffer.from(doc.output('arraybuffer')))
+          doc.setFont(FONT, 'normal')
+          doc.text('Montant Payé (Reçu):', margin, yPosition)
+          doc.setTextColor(0, 100, 0)
+          doc.text(
+            `${currencySymbol} ${client.paid.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}`,
+            amountX,
+            yPosition,
+            {
+              align: 'right',
+            },
+          )
+          doc.setTextColor(0, 0, 0) // Reset color
+          yPosition += 7 // Remaining
+
+          doc.text('Reste à Payer:', margin, yPosition)
+          doc.setFont(FONT, 'bold') // Light gray line above the final amount for visual separation
+          doc.setDrawColor(LIGHT_GRAY[0], LIGHT_GRAY[1], LIGHT_GRAY[2])
+          doc.line(pageWidth - margin - 50, yPosition - 1, amountX - 30, yPosition - 1)
+          doc.setTextColor(100, 100, 10)
+          doc.text(
+            `${currencySymbol} ${client.leftToPay.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')}`,
+            amountX,
+            yPosition,
+            {
+              align: 'right',
+            },
+          )
+          doc.setTextColor(0, 0, 0) // Reset color
+          doc.setDrawColor(0, 0, 0) // Reset line color
+          yPosition += 7 // Final Separator
+
+          yPosition += 5
+          doc.line(margin, yPosition, pageWidth - margin, yPosition)
+          yPosition += 5 // ----------------------------------------------------
+          // 5. Footer / Signature Section (Aligned)
+          // ----------------------------------------------------
+          doc.setFontSize(10)
+          doc.setFont(FONT, 'normal')
+          const signatureY = doc.internal.pageSize.getHeight() - 80
+          const clientX = margin + 30
+          const companyX = pageWidth - margin - 40
+
+          doc.setFont(FONT, 'bold')
+          doc.text('Signature du Client', clientX, signatureY)
+          doc.text("Cachet et Signature de l'Agence", companyX, signatureY)
+          doc.setFont(FONT, 'normal') // Signature Lines
+          // doc.line(clientX - 10, signatureY + 5, clientX + 45, signatureY + 5)
+          // doc.line(companyX - 10, signatureY + 5, companyX + 55, signatureY + 5) // Get the PDF binary data
+
+          const pdfBuffer = Buffer.from(doc.output('arraybuffer')) // Return a new Response object
+
+          return new Response(pdfBuffer, {
+            status: 200,
+            headers: {
+              'Content-Type': 'application/pdf',
+              'Content-Disposition': `attachment; filename="${client.prenom}_${client.nom}_profile.pdf"`,
+            },
+          })
         } catch (error) {
           const message = error instanceof Error ? error.message : 'PDF generation failed'
-          return res.status(500).json({ error: message })
+          console.error('PDF generation error:', error) // Return error as a new Response object
+          return new Response(JSON.stringify({ error: message }), {
+            status: 500,
+            headers: { 'Content-Type': 'application/json' },
+          })
         }
       },
     },

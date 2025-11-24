@@ -69,6 +69,9 @@ export interface Config {
   collections: {
     users: User;
     media: Media;
+    'excel-uploads': ExcelUpload;
+    'import-buffer': ImportBuffer;
+    clients: Client;
     'payload-kv': PayloadKv;
     'payload-locked-documents': PayloadLockedDocument;
     'payload-preferences': PayloadPreference;
@@ -78,6 +81,9 @@ export interface Config {
   collectionsSelect: {
     users: UsersSelect<false> | UsersSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
+    'excel-uploads': ExcelUploadsSelect<false> | ExcelUploadsSelect<true>;
+    'import-buffer': ImportBufferSelect<false> | ImportBufferSelect<true>;
+    clients: ClientsSelect<false> | ClientsSelect<true>;
     'payload-kv': PayloadKvSelect<false> | PayloadKvSelect<true>;
     'payload-locked-documents': PayloadLockedDocumentsSelect<false> | PayloadLockedDocumentsSelect<true>;
     'payload-preferences': PayloadPreferencesSelect<false> | PayloadPreferencesSelect<true>;
@@ -160,6 +166,69 @@ export interface Media {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "excel-uploads".
+ */
+export interface ExcelUpload {
+  id: string;
+  alt?: string | null;
+  updatedAt: string;
+  createdAt: string;
+  url?: string | null;
+  thumbnailURL?: string | null;
+  filename?: string | null;
+  mimeType?: string | null;
+  filesize?: number | null;
+  width?: number | null;
+  height?: number | null;
+  focalX?: number | null;
+  focalY?: number | null;
+}
+/**
+ * Temporary collection for uploading Excel data. Upload your file and clients will be automatically populated.
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "import-buffer".
+ */
+export interface ImportBuffer {
+  id: string;
+  /**
+   * Select your Excel file with columns: nom, prenom, date de naissance, lieu de naissance, numero passeport, expiration, paid, left to pay
+   */
+  excelFile: string | ExcelUpload;
+  importStatus?: ('ready' | 'processing' | 'completed' | 'failed') | null;
+  /**
+   * Import result message
+   */
+  importMessage?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * Main Hajj clients database managed by Hajj Mabrouk
+ *
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "clients".
+ */
+export interface Client {
+  id: string;
+  nom: string;
+  prenom: string;
+  dateNaissance?: string | null;
+  lieuNaissance?: string | null;
+  numeroPasseport: string;
+  expiration: string;
+  paid: number;
+  leftToPay: number;
+  /**
+   * Auto-calculated based on expiration date
+   */
+  expirationStatus?: ('OK' | 'KO') | null;
+  agentName?: string | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "payload-kv".
  */
 export interface PayloadKv {
@@ -189,6 +258,18 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'media';
         value: string | Media;
+      } | null)
+    | ({
+        relationTo: 'excel-uploads';
+        value: string | ExcelUpload;
+      } | null)
+    | ({
+        relationTo: 'import-buffer';
+        value: string | ImportBuffer;
+      } | null)
+    | ({
+        relationTo: 'clients';
+        value: string | Client;
       } | null);
   globalSlug?: string | null;
   user: {
@@ -271,6 +352,53 @@ export interface MediaSelect<T extends boolean = true> {
   height?: T;
   focalX?: T;
   focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "excel-uploads_select".
+ */
+export interface ExcelUploadsSelect<T extends boolean = true> {
+  alt?: T;
+  updatedAt?: T;
+  createdAt?: T;
+  url?: T;
+  thumbnailURL?: T;
+  filename?: T;
+  mimeType?: T;
+  filesize?: T;
+  width?: T;
+  height?: T;
+  focalX?: T;
+  focalY?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "import-buffer_select".
+ */
+export interface ImportBufferSelect<T extends boolean = true> {
+  excelFile?: T;
+  importStatus?: T;
+  importMessage?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "clients_select".
+ */
+export interface ClientsSelect<T extends boolean = true> {
+  nom?: T;
+  prenom?: T;
+  dateNaissance?: T;
+  lieuNaissance?: T;
+  numeroPasseport?: T;
+  expiration?: T;
+  paid?: T;
+  leftToPay?: T;
+  expirationStatus?: T;
+  agentName?: T;
+  updatedAt?: T;
+  createdAt?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
