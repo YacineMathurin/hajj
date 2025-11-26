@@ -213,16 +213,16 @@ export interface Client {
   id: string;
   nom: string;
   prenom: string;
-  dateNaissance?: string | null;
-  lieuNaissance?: string | null;
   numeroPasseport: string;
   expiration: string;
-  paid: number;
-  leftToPay: number;
+  dateNaissance?: string | null;
+  lieuNaissance?: string | null;
   /**
    * Auto-calculated based on expiration date
    */
   expirationStatus?: ('OK' | 'KO') | null;
+  paid: number;
+  leftToPay: number;
   agentName?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -389,13 +389,13 @@ export interface ImportBufferSelect<T extends boolean = true> {
 export interface ClientsSelect<T extends boolean = true> {
   nom?: T;
   prenom?: T;
-  dateNaissance?: T;
-  lieuNaissance?: T;
   numeroPasseport?: T;
   expiration?: T;
+  dateNaissance?: T;
+  lieuNaissance?: T;
+  expirationStatus?: T;
   paid?: T;
   leftToPay?: T;
-  expirationStatus?: T;
   agentName?: T;
   updatedAt?: T;
   createdAt?: T;

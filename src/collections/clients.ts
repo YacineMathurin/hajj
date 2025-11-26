@@ -38,75 +38,121 @@ export const clients: CollectionConfig = {
   },
   fields: [
     {
-      name: 'nom',
-      type: 'text',
-      required: true,
-      label: 'Last Name',
-    },
-    {
-      name: 'prenom',
-      type: 'text',
-      required: true,
-      label: 'First Name',
-    },
-    {
-      name: 'dateNaissance',
-      type: 'date',
-      label: 'Date of Birth',
-    },
-    {
-      name: 'lieuNaissance',
-      type: 'text',
-      label: 'Place of Birth',
-    },
-    {
-      name: 'numeroPasseport',
-      type: 'text',
-      required: true,
-      unique: true,
-      label: 'Passport Number',
-    },
-    {
-      name: 'expiration',
-      type: 'date',
-      required: true,
-      label: 'Passport Expiration Date',
-    },
-    {
-      name: 'paid',
-      type: 'number',
-      required: true,
-      defaultValue: 0,
-      label: 'Amount Paid',
-    },
-    {
-      name: 'leftToPay',
-      type: 'number',
-      required: true,
-      defaultValue: 0,
-      label: 'Amount Left to Pay',
-    },
-    {
-      name: 'expirationStatus',
-      type: 'select',
-      options: [
-        { label: '✓ OK (Valid >6 months)', value: 'OK' },
-        { label: '✗ KO (Expires <6 months)', value: 'KO' },
+      type: 'row',
+      fields: [
+        {
+          name: 'nom',
+          type: 'text',
+          required: true,
+          label: 'Last Name',
+          admin: {
+            width: '25%',
+          },
+        },
+        {
+          name: 'prenom',
+          type: 'text',
+          required: true,
+          label: 'First Name',
+          admin: {
+            width: '25%',
+          },
+        },
       ],
-      admin: {
-        readOnly: true,
-        description: 'Auto-calculated based on expiration date',
-      },
-      label: 'Passport Status',
+    },
+
+    {
+      type: 'row',
+      fields: [
+        {
+          name: 'numeroPasseport',
+          type: 'text',
+          required: true,
+          unique: true,
+          label: 'Passport Number',
+          admin: {
+            width: '25%',
+          },
+        },
+        {
+          name: 'expiration',
+          type: 'date',
+          required: true,
+          label: 'Passport Expiration Date',
+          admin: {
+            width: '25%',
+          },
+        },
+        {
+          name: 'dateNaissance',
+          type: 'date',
+          label: 'Date of Birth',
+        },
+        {
+          name: 'lieuNaissance',
+          type: 'text',
+          label: 'Place of Birth',
+        },
+      ],
     },
     {
-      name: 'agentName',
-      type: 'text',
-      defaultValue: 'Hajj Mabrouk',
-      admin: {
-        readOnly: true,
-      },
-      label: 'Agent Name',
+      type: 'row',
+      fields: [
+        {
+          name: 'expirationStatus',
+          type: 'select',
+          options: [
+            { label: '✓ OK (Valid >6 months)', value: 'OK' },
+            { label: '✗ KO (Expires <6 months)', value: 'KO' },
+          ],
+          admin: {
+            readOnly: true,
+            description: 'Auto-calculated based on expiration date',
+            width: '25%',
+          },
+          label: 'Passport Status',
+        },
+      ],
+    },
+    {
+      type: 'row',
+      fields: [
+        {
+          name: 'paid',
+          type: 'number',
+          required: true,
+          defaultValue: 0,
+          label: 'Amount Paid',
+          admin: {
+            width: '25%',
+          },
+        },
+        {
+          name: 'leftToPay',
+          type: 'number',
+          required: true,
+          defaultValue: 0,
+          label: 'Amount Left to Pay',
+          admin: {
+            width: '25%',
+          },
+        },
+      ],
+    },
+    {
+      type: 'row',
+      fields: [
+        {
+          name: 'agentName',
+          type: 'text',
+          defaultValue: 'Hajj Mabrouk',
+          admin: {
+            readOnly: true,
+            width: '25%',
+          },
+          label: 'Agent Name',
+        },
+      ],
     },
   ],
   hooks: {
