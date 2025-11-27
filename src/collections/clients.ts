@@ -386,7 +386,7 @@ export const clients: CollectionConfig = {
           doc.setFont(FONT, 'normal')
           const signatureY = doc.internal.pageSize.getHeight() - 80
           const clientX = margin + 30
-          const companyX = pageWidth - margin - 40
+          const companyX = pageWidth - margin - 55
 
           doc.setFont(FONT, 'bold')
           doc.text('Signature du Client', clientX, signatureY)
